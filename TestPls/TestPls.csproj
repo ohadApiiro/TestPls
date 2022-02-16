@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net5.0</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Apiiro.Python.LanguageServer" Version="0.0.3" />
+      <PackageReference Include="Refit" Version="6.0.94" />
+      <PackageReference Include="Refit.Newtonsoft.Json" Version="6.0.94" />
+      <PackageReference Include="RestSharp" Version="106.11.7" />
+      <PackageReference Include="StreamJsonRpc" Version="2.8.21" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.Python.Analysis, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath>ext\python-language-server\Microsoft.Python.Analysis.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.Python.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath>ext\python-language-server\Microsoft.Python.Core.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.Python.LanguageServer, Version=0.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath>ext\python-language-server\Microsoft.Python.LanguageServer.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.Python.LanguageServer, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath>..\..\python-language-server\output\bin\Debug\Microsoft.Python.LanguageServer.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.Python.Parsing, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+        <HintPath>ext\python-language-server\Microsoft.Python.Parsing.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="ext\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="ext\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="ext\**" />
+    </ItemGroup>
+
+</Project>
