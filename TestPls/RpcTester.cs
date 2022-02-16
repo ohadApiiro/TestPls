@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Python.Core.Text;
 using Microsoft.Python.LanguageServer.Protocol;
 using Nerdbank.Streams;
+using Polly;
 using StreamJsonRpc;
 
 namespace TestPls
@@ -34,7 +35,6 @@ namespace TestPls
                 OpenFile(filePath, rpc);
 
                 await PrintSymbol(filePath, position, rpc);
-
                 await Close(process, rpc);
             }
 
@@ -44,20 +44,57 @@ namespace TestPls
         private static async Task PrintSymbol(string filePath, Position position, JsonRpc rpc)
         {
             var positionParams = ParamsFactory.GetPositionParams(filePath, position);
-            Hover hover = await rpc.InvokeWithParameterObjectAsync<Hover>("textDocument/hover", positionParams);
-            if (hover != null)
-            {
-                Console.WriteLine($"Hover results {hover.contents.value}");
-            }
+            Hover hover = await GetHoverAsync(filePath, position, rpc);
+            
+            var msg = hover == null ? "hover api returned null" : hover.contents.value;
+            Console.WriteLine($"{msg}");
 
-            Reference[] definitions =
-                await rpc.InvokeWithParameterObjectAsync<Reference[]>("textDocument/definition", positionParams);
-            if (definitions != null && definitions.Length > 0)
-            {
-                Console.WriteLine($"definition results {definitions[0]?.uri}");
-            }
+            var definitions = await Invoker.InvokeGotoDefinitionAsync(positionParams, rpc); //rpc.InvokeWithParameterObjectAsync<Reference[]>("textDocument/definition", positionParams);
+            msg = (definitions == null || definitions.Length == 0)
+                ? "no results from goto definition api"
+                : $"{definitions[0].uri}";
+            Console.WriteLine(msg);
         }
 
+        private static async Task<Hover> GetHoverAsync(string filePath, Position position, JsonRpc rpc)
+        {
+            var positionParams = ParamsFactory.GetPositionParams(filePath, position);
+
+            var sleepMsec = 5;
+            var count = 1;
+            Hover hover = null;
+            await Policy.HandleResult<bool>(b => b == false)
+                .WaitAndRetryAsync(10,
+                    _ =>
+                    {
+                        //Console.WriteLine($"value of _ {_}");
+                        sleepMsec += 5;
+                        return TimeSpan.FromMilliseconds(10);
+                    })
+                .ExecuteAsync(
+                    async () =>
+                    {
+                        Console.WriteLine($"Retry count {count++}");
+                        hover = await Invoker.InvokeHoverAsync(positionParams, rpc); //rpc.InvokeWithParameterObjectAsync<Hover>("textDocument/hover", positionParams);
+                        if (hover == null)
+                        {
+                            Console.WriteLine("Hover is null");
+                            return false;
+                        }
+                    
+                        var className = hover.contents?.value?.Split(Environment.NewLine)[0] ?? string.Empty;
+                        if (className.Contains("in progress"))
+                        {
+                            Console.WriteLine("in progress");
+                            return false;
+                        }
+
+                        return true;
+                    }
+                );
+
+            return hover;
+        }
         private static async Task Close(Process process, JsonRpc rpc)
         {
             Console.WriteLine($"{process.Id}: End of operation reached");
@@ -84,79 +121,25 @@ namespace TestPls
         private static async Task DoInit(string rootPath, JsonRpc rpc)
         {
             InitializeParams initParams = ParamsFactory.GetInitObject(rootPath);
-
-            InitializeResult res = await rpc.InvokeWithParameterObjectAsync<InitializeResult>("initialize", initParams);
-
-            await rpc.InvokeWithParameterObjectAsync("initialized", new { });
-            Thread.Sleep(10);
+            await Invoker.InvokeInitAsync(initParams, rpc);
+            await Invoker.InvokeInitializedAsync(rpc);
         }
 
         public static Process StartProcess(string exePath)
         {
-            // var exePath =
-            //     "/home/ohad/src/TestPls/TestPls/ext/Microsoft.Python.LanguageServer.dll";
             var exePath1 = "/Lim.FeaturesExtractor.Unified/ext/Microsoft.Python.LanguageServer.dll";
 
             Console.WriteLine($"starting {exePath}");
             var shortCmd = $"{exePath}";
-            //var psi = new ProcessStartInfo("/home/ohad/.dotnet/dotnet", shortCmd);
+            
             var psi = new ProcessStartInfo("/snap/dotnet-sdk/155/dotnet", shortCmd);
-            //var psi = new ProcessStartInfo("dotnet", shortCmd);
+           
             var proc = new Process();
             proc.StartInfo = psi;
             proc.StartInfo.RedirectStandardInput = true;
             proc.StartInfo.RedirectStandardOutput = true;
             proc.Start();
             return proc;
-        }
-        
-        private static async Task PrintLocationAsync(JsonRpc rpc, DocumentSymbol[] symbols, string filePath,
-            string symbol)
-        {
-            var position = GetSymbolPosition(symbol, symbols);
-            if (position == null)
-            {
-                Console.WriteLine($"symbol {symbol} not found");
-                return;
-            }
-
-            var refParams = ParamsFactory.GetReferenceParams(filePath, position.Value);
-            Reference[] references = await rpc.InvokeWithParameterObjectAsync<Reference[]>
-                ("textDocument/references", refParams);
-
-            Console.WriteLine($"found {references.Length} references");
-            foreach (var reference in references)
-            {
-                Console.WriteLine($"{reference.range.start}");
-            }
-
-            var positionParams = ParamsFactory.GetPositionParams(filePath, references.Last().range.start);
-            Reference[] defReferences = await rpc.InvokeWithParameterObjectAsync<Reference[]>
-                ("textDocument/definition", positionParams);
-
-            Console.WriteLine();
-        }
-
-        private static Position? GetSymbolPosition(string symbolName, DocumentSymbol[] symbols)
-        {
-            foreach (var symbol in symbols)
-            {
-                if (symbol.name == symbolName)
-                {
-                    return symbol.selectionRange.start;
-                }
-            }
-
-            return null;
-        }
-       
-        private static async Task OpenFilesAsync(IEnumerable<string> files, JsonRpc rpc)
-        {
-            foreach (var file in files)
-            {
-                var didOpenParams = ParamsFactory.GetDidOpenParams(file);
-                await rpc.InvokeWithParameterObjectAsync("textDocument/didOpen", didOpenParams);
-            }
         }
     }
 }
