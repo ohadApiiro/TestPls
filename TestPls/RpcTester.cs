@@ -1,13 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Python.Core.Text;
 using Microsoft.Python.LanguageServer.Protocol;
-using Nerdbank.Streams;
-using Polly;
 using StreamJsonRpc;
 
 namespace TestPls
@@ -16,13 +11,6 @@ namespace TestPls
     {
         public static async Task DoRpcAsync(string rootPath, string filePath, Position position, string exePath = null)
         {
-            // /home/ohad/src/apiiro/python-language-server/output/bin/Debug/Microsoft.Python.LanguageServer.dll"
-            // /home/ohad/src/apiiro/python-language-server/src/LanguageServer/Impl/bin/Release/net5.0/python/Microsoft.Python.LanguageServer.dll
-            
-            if (exePath == null)
-            {
-                exePath = "/Lim.FeaturesExtractor.Unified/ext/Microsoft.Python.LanguageServer.dll";
-            }
             var process = StartProcess(exePath);
             if (process.HasExited)
             {
@@ -49,7 +37,7 @@ namespace TestPls
             var msg = hover == null ? "hover api returned null" : hover.contents.value;
             Console.WriteLine($"{msg}");
 
-            var definitions = await Invoker.InvokeGotoDefinitionAsync(positionParams, rpc); //rpc.InvokeWithParameterObjectAsync<Reference[]>("textDocument/definition", positionParams);
+            var definitions = await Invoker.InvokeGotoDefinitionAsync(positionParams, rpc);
             msg = (definitions == null || definitions.Length == 0)
                 ? "no results from goto definition api"
                 : $"{definitions[0].uri}";
@@ -59,42 +47,53 @@ namespace TestPls
         private static async Task<Hover> GetHoverAsync(string filePath, Position position, JsonRpc rpc)
         {
             var positionParams = ParamsFactory.GetPositionParams(filePath, position);
-
-            var sleepMsec = 5;
-            var count = 1;
-            Hover hover = null;
-            await Policy.HandleResult<bool>(b => b == false)
-                .WaitAndRetryAsync(10,
-                    _ =>
-                    {
-                        //Console.WriteLine($"value of _ {_}");
-                        sleepMsec += 5;
-                        return TimeSpan.FromMilliseconds(10);
-                    })
-                .ExecuteAsync(
-                    async () =>
-                    {
-                        Console.WriteLine($"Retry count {count++}");
-                        hover = await Invoker.InvokeHoverAsync(positionParams, rpc); //rpc.InvokeWithParameterObjectAsync<Hover>("textDocument/hover", positionParams);
-                        if (hover == null)
-                        {
-                            Console.WriteLine("Hover is null");
-                            return false;
-                        }
-                    
-                        var className = hover.contents?.value?.Split(Environment.NewLine)[0] ?? string.Empty;
-                        if (className.Contains("in progress"))
-                        {
-                            Console.WriteLine("in progress");
-                            return false;
-                        }
-
-                        return true;
-                    }
-                );
-
+            var hover = await Invoker.InvokeHoverAsync(positionParams, rpc);
+            if (hover == null)
+            {
+                Console.WriteLine("Hover is null");
+            }
             return hover;
         }
+        
+        // private static async Task<Hover> GetHoverAsync(string filePath, Position position, JsonRpc rpc)
+        // {
+        //     var positionParams = ParamsFactory.GetPositionParams(filePath, position);
+        //
+        //     var sleepMsec = 5;
+        //     var count = 1;
+        //     Hover hover = null;
+        //     await Policy.HandleResult<bool>(b => b == false)
+        //         .WaitAndRetryAsync(10,
+        //             _ =>
+        //             {
+        //                 //Console.WriteLine($"value of _ {_}");
+        //                 sleepMsec += 5;
+        //                 return TimeSpan.FromMilliseconds(10);
+        //             })
+        //         .ExecuteAsync(
+        //             async () =>
+        //             {
+        //                 Console.WriteLine($"Retry count {count++}");
+        //                 hover = await Invoker.InvokeHoverAsync(positionParams, rpc); //rpc.InvokeWithParameterObjectAsync<Hover>("textDocument/hover", positionParams);
+        //                 if (hover == null)
+        //                 {
+        //                     Console.WriteLine("Hover is null");
+        //                     return false;
+        //                 }
+        //             
+        //                 var className = hover.contents?.value?.Split(Environment.NewLine)[0] ?? string.Empty;
+        //                 if (className.Contains("in progress"))
+        //                 {
+        //                     Console.WriteLine("in progress");
+        //                     return false;
+        //                 }
+        //
+        //                 return true;
+        //             }
+        //         );
+        //
+        //     return hover;
+        // }
         private static async Task Close(Process process, JsonRpc rpc)
         {
             Console.WriteLine($"{process.Id}: End of operation reached");
@@ -132,7 +131,7 @@ namespace TestPls
             Console.WriteLine($"starting {exePath}");
             var shortCmd = $"{exePath}";
             
-            var psi = new ProcessStartInfo("/snap/dotnet-sdk/155/dotnet", shortCmd);
+            var psi = new ProcessStartInfo("/snap/dotnet-sdk/current/dotnet", shortCmd);
            
             var proc = new Process();
             proc.StartInfo = psi;

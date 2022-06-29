@@ -27,9 +27,9 @@ namespace TestPls
                 exePath = args[0];
             }
             
-            var repoPath = "/home/ohad/src/django";
-            var fileName = "/home/ohad/src/django/django/shortcuts.py";
-            await RpcTester.DoRpcAsync(repoPath, fileName, new Position { line = 18, character = 22 }, exePath);
+            var repoPath = "/home/ohad/PycharmProjects/python-playground";
+            var fileName = "/home/ohad/PycharmProjects/python-playground/main.py";
+            await RpcTester.DoRpcAsync(repoPath, fileName, new Position {line = 6, character = 1}, exePath);
             
             Console.WriteLine("The end");
         }

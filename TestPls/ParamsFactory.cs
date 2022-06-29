@@ -11,8 +11,7 @@ namespace TestPls
 {
     public class ParamsFactory
     {
-        //private static string _filePath = "/home/ohad/PycharmProjects/PyDataModels/manage.py";
-        private static string _rootPath = "/home/ohad/PycharmProjects/PyDataModels";
+        private static string _rootPath = null;
         private static string _cacheFolderPath = "/home/ohad/tmp";
         private static string _pythonPath = "/usr/bin/python3.6m";
         private static string _pythonVersion = "3.6.9";
@@ -22,9 +21,8 @@ namespace TestPls
         public static InitializeParams GetInitObject(string rootPath)
         {
             _rootPath = rootPath;
-            string[] incFiles = {"**/*.py"}; //GetAllFiles();
-            string[] exFiles = {"venv"}; //GetAllFiles();
-            //Console.WriteLine($"Process id {Process.GetCurrentProcess().Id}");
+            string[] incFiles = {"**/*.py"};
+            string[] exFiles = {"venv"}; 
             
           
             var initObject = new InitializeParams
@@ -32,24 +30,17 @@ namespace TestPls
                 processId = Process.GetCurrentProcess().Id,
                 rootPath = rootPath,
                 trace = TraceLevel.Verbose,
-                capabilities = new ClientCapabilities
+                capabilities = new()
                 {
-                    workspace = new WorkspaceClientCapabilities(),
-                    textDocument = new TextDocumentClientCapabilities
+                    textDocument = new()
                     {
-                        documentSymbol = new TextDocumentClientCapabilities.DocumentSymbolCapabilities
-                        {
-                            symbolKind =
-                                new TextDocumentClientCapabilities.DocumentSymbolCapabilities.SymbolKindCapabilities
-                                {
-                                    valueSet = SymbolKinds
-                                }
-                        },
+                        hover = new() { contentFormat = new[] { MarkupKind.PlainText } },
                         references = new TextDocumentClientCapabilities.ReferencesCapabilities
                         {
                             dynamicRegistration = true
                         }
-                    }
+                    },
+                    workspace = new WorkspaceClientCapabilities(),
                 },
 
                 initializationOptions = new PythonInitializationOptions
